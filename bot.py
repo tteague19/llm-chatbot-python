@@ -3,10 +3,12 @@ from time import sleep
 
 import streamlit as st
 from langchain.agents import AgentType, AgentExecutor
+from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferWindowMemory
 
 from src.agent import generate_response_from_agent, create_agent
-from src.llm import create_chat_llm
+from src.llm import create_chat_llm, create_embedding_model
+from src.tools.vector import create_neo4j_vector_from_existing_index
 from utils import write_message
 
 # tag::setup[]
@@ -22,6 +24,19 @@ accurate information only.
 
 Please answer all questions with information provided as context and do not
 include knowledge derived from your pre-training.
+"""
+
+RETRIEVAL_QUERY = """
+RETURN
+    node.plot AS text,
+    score,
+    {
+        title: node.title,
+        directors: [ (person)-[:DIRECTED]->(node) | person.name ],
+        actors: [ (person)-[r:ACTED_IN]->(node) | [person.name, r.role] ],
+        tmdbId: node.tmdbId,
+        source: 'https://www.themoviedb.org/movie/'+ node.tmdbId
+    } AS metadata
 """
 
 
@@ -77,12 +92,33 @@ llm_chatbot = create_chat_llm(
 memory = ConversationBufferWindowMemory(
     memory_key="chat_history", k=5, return_messages=True,
 )
+embeddings = create_embedding_model(
+    api_key=st.secrets.open_ai_settings["OPENAI_API_KEY"],
+    model_name=st.secrets.open_ai_settings["OPENAI_EMBEDDING_MODEL"],
+)
+neo4j_vector = create_neo4j_vector_from_existing_index(
+    embedding=embeddings,
+    url=st.secrets.neo4j_settings["URI"],
+    user_name=st.secrets.neo4j_settings["USERNAME"],
+    password=st.secrets.neo4j_settings["PASSWORD"],
+    index_name=st.secrets.neo4j_settings["INDEX_NAME"],
+    node_label=st.secrets.neo4j_settings["NODE_LABEL"],
+    text_node_property=st.secrets.neo4j_settings["TEXT_NODE_PROP"],
+    embedding_node_property=st.secrets.neo4j_settings["EMBEDDING_NODE_PROP"],
+    retrieval_query=RETRIEVAL_QUERY,
+)
+
 chat_agent = create_agent(
     tools=[],
     llm=llm_chatbot,
     memory=memory,
     agent_type=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
     system_message=SYSTEM_MESSAGE,
+)
+
+retriever = neo4j_vector.as_retriever()
+knowledge_graph_qa = RetrievalQA.from_chain_type(
+    llm=llm_chatbot, chain_type="stuff", retriever=retriever,
 )
 # end::setup[]
 
