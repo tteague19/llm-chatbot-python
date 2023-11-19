@@ -1,35 +1,69 @@
+"""Implements the Streamlit frontend for the chatbot."""
+from time import sleep
+
 import streamlit as st
+from langchain.agents import AgentType, AgentExecutor
+from langchain.memory import ConversationBufferWindowMemory
+
+from src.agent import generate_response_from_agent, create_agent
+from src.llm import create_chat_llm
 from utils import write_message
 
 # tag::setup[]
 # Page Config
 st.set_page_config("Ebert", page_icon=":movie_camera:")
+
+# Instantiate the large language model, memory context, and agent.
+llm_chatbot = create_chat_llm(
+    api_key=st.secrets.open_ai_settings["OPENAI_API_KEY"],
+    model_name=st.secrets.open_ai_settings["OPENAI_CHAT_MODEL"]
+)
+memory = ConversationBufferWindowMemory(
+    memory_key="chat_history", k=5, return_messages=True,
+)
+chat_agent = create_agent(
+    tools=[],
+    llm=llm_chatbot,
+    memory=memory,
+    agent_type=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+)
 # end::setup[]
 
 # tag::session[]
 # Set up Session State
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi, I'm the GraphAcademy Chatbot!  How can I help you?"},
+        {
+            "role": "assistant",
+            "content": "Hi, I'm the GraphAcademy Chatbot!  How can I help you?"
+        },
     ]
+
+
 # end::session[]
+
 
 # tag::submit[]
 # Submit handler
-def handle_submit(message):
+def handle_submit(user_message: str, agent: AgentExecutor) -> None:
     """
-    Submit handler:
+    Handle a submission from a user.
 
-    You will modify this method to talk with an LLM and provide
-    context using data from Neo4j.
+    :param user_message: The message the user provides to the Streamlit app
+    :type user_message: str
+    :param agent: An agent executor to provide a response to
+        :param:`user_message`
+    :type agent: AgentExecutor
     """
 
-    # Handle the response
     with st.spinner('Thinking...'):
-        # # TODO: Replace this with a call to your LLM
-        from time import sleep
+        response = generate_response_from_agent(
+            prompt=user_message, agent=agent, extraction_key="output",
+        )
         sleep(1)
-        write_message('assistant', message)
+        write_message(role="assistant", content=response, save=True)
+
+
 # end::submit[]
 
 
@@ -45,5 +79,5 @@ with st.container():
         write_message('user', prompt)
 
         # Generate a response
-        handle_submit(prompt)
+        handle_submit(user_message=prompt, agent=chat_agent)
 # end::chat[]
