@@ -12,6 +12,7 @@ def create_agent(
         llm: BaseLanguageModel,
         memory: BaseMemory,
         agent_type: AgentType,
+        system_message: str,
         verbose: bool = True,
 ) -> AgentExecutor:
     """
@@ -25,6 +26,8 @@ def create_agent(
     :type memory: BaseMemory
     :param agent_type: The type of agent to create
     :type agent_type: AgentType
+    :param system_message: The system message for the agent to use
+    :type system_message: str
     :param verbose: Whether to include additional diagnostic output in the
         return from the agent, defaults to True
     :type verbose: bool
@@ -32,7 +35,12 @@ def create_agent(
     :rtype: AgentExecutor
     """
     return initialize_agent(
-        tools=tools, llm=llm, memory=memory, verbose=verbose, agent=agent_type,
+        tools=tools,
+        llm=llm,
+        memory=memory,
+        verbose=verbose,
+        agent=agent_type,
+        agent_kwargs={"system_message": system_message},
     )
 
 
