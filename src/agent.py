@@ -1,5 +1,5 @@
 """"Implements a LangChain Agent."""
-from typing import Sequence
+from typing import Sequence, Optional
 
 from langchain.agents import AgentType, initialize_agent, AgentExecutor
 from langchain.schema import BaseMemory
@@ -34,3 +34,25 @@ def create_agent(
     return initialize_agent(
         tools=tools, llm=llm, memory=memory, verbose=verbose, agent=agent_type,
     )
+
+
+def generate_response_from_agent(
+        agent: AgentExecutor, prompt: str, extraction_key: str,
+) -> Optional[str]:
+    """
+    Generate a response from a user prompt using a LangChain Agent.
+
+    :param agent: An agent executor object
+    :type agent: AgentExecutor
+    :param prompt: A prompt for the :param:`agent` to use in generating a
+        response
+    :type prompt: str
+    :param extraction_key: The key in the dictionary that the :param:`agent`
+        returns after generating a response to the :param:`prompt`
+    :type extraction_key: str
+    :return: The value at :param:`extraction_key` after the :param:`agent`
+        generates a response to the :param:`prompt`
+    :rtype: str
+    """
+    response = agent(prompt)
+    return response.get(extraction_key, None)
