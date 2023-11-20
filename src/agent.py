@@ -45,16 +45,16 @@ def create_agent(
 
 
 def generate_response_from_agent(
-        agent: AgentExecutor, prompt: str, extraction_key: str,
+        prompt: str, agent: AgentExecutor, extraction_key: str,
 ) -> Optional[str]:
     """
     Generate a response from a user prompt using a LangChain Agent.
 
-    :param agent: An agent executor object
-    :type agent: AgentExecutor
     :param prompt: A prompt for the :param:`agent` to use in generating a
         response
     :type prompt: str
+    :param agent: An agent executor object
+    :type agent: AgentExecutor
     :param extraction_key: The key in the dictionary that the :param:`agent`
         returns after generating a response to the :param:`prompt`
     :type extraction_key: str
