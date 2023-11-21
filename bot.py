@@ -5,12 +5,14 @@ from typing import Optional, Callable
 
 import streamlit as st
 from langchain.agents import AgentType
-from langchain.chains import RetrievalQAWithSourcesChain
+from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.tools import Tool
 
 from src.agent import create_agent, generate_response_from_agent
+from src.graph import create_graph
 from src.llm import create_chat_llm, create_embedding_model
+from src.tools.cypher import create_cypher_qa_chain
 from src.tools.vector import create_neo4j_vector_from_existing_index
 from utils import write_message
 
@@ -44,6 +46,11 @@ RETURN
 
 VECTOR_SEARCH_TOOL_DESC = """
 Provides information about movie plots using Vector Search
+"""
+
+GRAPH_CYPHER_TOOL_DESC = """
+Provides information about Movies including their Actors, Directors and User 
+reviews
 """
 
 
@@ -116,7 +123,7 @@ neo4j_vector = create_neo4j_vector_from_existing_index(
 )
 
 retriever = neo4j_vector.as_retriever()
-knowledge_graph_qa = RetrievalQAWithSourcesChain.from_llm(
+knowledge_graph_qa = RetrievalQA.from_chain_type(
     llm=llm_chatbot, retriever=retriever, chain_type="stuff",
 )
 tools = [
