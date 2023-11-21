@@ -25,9 +25,9 @@ from llm import llm, embeddings
 # tag::vector[]
 neo4jvector = Neo4jVector.from_existing_index(
     embeddings,                              # <1>
-    url=st.secrets["NEO4J_URI"],             # <2>
-    username=st.secrets["NEO4J_USERNAME"],   # <3>
-    password=st.secrets["NEO4J_PASSWORD"],   # <4>
+    url=st.secrets.neo4j_settings["URI"],             # <2>
+    username=st.secrets.neo4j_settings["USERNAME"],   # <3>
+    password=st.secrets.neo4j_settings["PASSWORD"],   # <4>
     index_name="moviePlots",                 # <5>
     node_label="Movie",                      # <6>
     text_node_property="plot",               # <7>

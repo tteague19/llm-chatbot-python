@@ -3,8 +3,8 @@ import streamlit as st
 from langchain.chat_models import ChatOpenAI
 
 llm = ChatOpenAI(
-    openai_api_key=st.secrets["OPENAI_API_KEY"],
-    model=st.secrets["OPENAI_MODEL"],
+    openai_api_key=st.secrets.open_ai_settings["OPENAI_API_KEY"],
+    model=st.secrets.open_ai_settings["OPENAI_CHAT_MODEL"],
 )
 # end::llm[]
 
@@ -12,6 +12,6 @@ llm = ChatOpenAI(
 from langchain.embeddings import OpenAIEmbeddings
 
 embeddings = OpenAIEmbeddings(
-    openai_api_key=st.secrets["OPENAI_API_KEY"]
+    openai_api_key=st.secrets.open_ai_settings["OPENAI_API_KEY"]
 )
 # end::embedding[]
