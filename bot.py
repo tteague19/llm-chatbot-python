@@ -126,11 +126,23 @@ retriever = neo4j_vector.as_retriever()
 knowledge_graph_qa = RetrievalQA.from_chain_type(
     llm=llm_chatbot, retriever=retriever, chain_type="stuff",
 )
+
+graph = create_graph(
+    user_name=st.secrets.neo4j_settings["USERNAME"],
+    url=st.secrets.neo4j_settings["URI"],
+    password=st.secrets.neo4j_settings["PASSWORD"],
+)
+graph_cypher_qa_chain = create_cypher_qa_chain(llm=llm_chatbot, graph=graph)
 tools = [
     Tool.from_function(
         name="Vector Search Index",
         description=VECTOR_SEARCH_TOOL_DESC,
         func=knowledge_graph_qa,
+    ),
+    Tool.from_function(
+        name="Graph Cypher QA Chain",
+        description=GRAPH_CYPHER_TOOL_DESC,
+        func=graph_cypher_qa_chain,
     )
 ]
 
