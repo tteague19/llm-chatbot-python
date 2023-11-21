@@ -1,29 +1,32 @@
 """Implements the Streamlit frontend for the chatbot."""
+from functools import partial
 from time import sleep
+from typing import Optional, Callable
 
 import streamlit as st
-from langchain.agents import AgentType, AgentExecutor
-from langchain.chains import RetrievalQA
+from langchain.agents import AgentType
+from langchain.chains import RetrievalQAWithSourcesChain
 from langchain.memory import ConversationBufferWindowMemory
+from langchain.tools import Tool
 
-from src.agent import generate_response_from_agent, create_agent
+from src.agent import create_agent, generate_response_from_agent
 from src.llm import create_chat_llm, create_embedding_model
 from src.tools.vector import create_neo4j_vector_from_existing_index
 from utils import write_message
+
+ResponseFunction = Callable[[str], Optional[str]]
 
 # tag::setup[]
 # Page Config
 st.set_page_config("Ebert", page_icon=":movie_camera:")
 
 SYSTEM_MESSAGE = """
-You are an expert in knowledge about film and able to provide information about
-various movies. Be as helpful as possible for a user and  return as much 
-information as possible. Do not answer any questions that do not pertain to
-movies, actors, and directors. When in doubt, err on the side of providing
-accurate information only.
+You are a movie expert providing information about movies.
+Be as helpful as possible and return as much information as possible.
+Do not answer any questions that do not relate to movies, actors or directors.
 
-Please answer all questions with information provided as context and do not
-include knowledge derived from your pre-training.
+Do not answer any questions using your pre-trained knowledge, only use the 
+information provided in the context.
 """
 
 RETRIEVAL_QUERY = """
@@ -39,24 +42,28 @@ RETURN
     } AS metadata
 """
 
+VECTOR_SEARCH_TOOL_DESC = """
+Provides information about movie plots using Vector Search
+"""
+
 
 # tag::submit[]
 # Submit handler
-def handle_submit(user_message: str, agent: AgentExecutor) -> None:
+def handle_submit(
+        user_message: str,
+        response_generation_func: ResponseFunction,
+) -> None:
     """
     Handle a submission from a user.
 
     :param user_message: The message the user provides to the Streamlit app
     :type user_message: str
-    :param agent: An agent executor to provide a response to
-        :param:`user_message`
-    :type agent: AgentExecutor
+    :param response_generation_func: A function to pass a prompt and receive
+        a response
+    :type response_generation_func: ResponseFunction
     """
-
     with st.spinner('Thinking...'):
-        response = generate_response_from_agent(
-            prompt=user_message, agent=agent, extraction_key="output",
-        )
+        response = response_generation_func(user_message)
         sleep(1)
         write_message(role="assistant", content=response, save=True)
 
@@ -108,17 +115,24 @@ neo4j_vector = create_neo4j_vector_from_existing_index(
     retrieval_query=RETRIEVAL_QUERY,
 )
 
+retriever = neo4j_vector.as_retriever()
+knowledge_graph_qa = RetrievalQAWithSourcesChain.from_llm(
+    llm=llm_chatbot, retriever=retriever, chain_type="stuff",
+)
+tools = [
+    Tool.from_function(
+        name="Vector Search Index",
+        description=VECTOR_SEARCH_TOOL_DESC,
+        func=knowledge_graph_qa,
+    )
+]
+
 chat_agent = create_agent(
-    tools=[],
+    tools=tools,
     llm=llm_chatbot,
     memory=memory,
     agent_type=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
     system_message=SYSTEM_MESSAGE,
-)
-
-retriever = neo4j_vector.as_retriever()
-knowledge_graph_qa = RetrievalQA.from_chain_type(
-    llm=llm_chatbot, chain_type="stuff", retriever=retriever,
 )
 # end::setup[]
 
@@ -138,5 +152,12 @@ with st.container():
         write_message(role="user", content=prompt, save=True)
 
         # Generate a response
-        handle_submit(user_message=prompt, agent=chat_agent)
+        response_func = partial(
+            generate_response_from_agent,
+            agent=chat_agent,
+            extraction_key="output",
+        )
+        handle_submit(
+            user_message=prompt, response_generation_func=response_func,
+        )
 # end::chat[]

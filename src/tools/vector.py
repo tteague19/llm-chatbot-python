@@ -1,6 +1,7 @@
 """Implements a Neo4j Vector Search Index."""
 from typing import Optional
 
+from langchain.chains.retrieval_qa.base import BaseRetrievalQA
 from langchain.schema.embeddings import Embeddings
 from langchain.vectorstores.neo4j_vector import Neo4jVector
 
@@ -59,3 +60,27 @@ def create_neo4j_vector_from_existing_index(
         embedding_node_property=embedding_node_property,
         retrieval_query=retrieval_query,
     )
+
+
+def generate_response_from_retrieval_chain(
+        prompt: str, retrieval_chain: BaseRetrievalQA, extraction_key: str,
+) -> Optional[str]:
+    """
+    Generate a response to a prompt using a provide retrieval chain.
+
+    :param prompt: A prompt to pass to the :param:`retrieval_chain`
+    :type prompt: str
+    :param retrieval_chain: A retrieval chain to which we pass the
+        :param:`prompt`
+    :type retrieval_chain: BaseRetrievalQA
+
+    :param extraction_key: The key from the response from the
+        :param:`retrieval_chain` to return as a single value
+    :type extraction_key: str
+    :return: The value at the key :param:`extraction_key` from the response
+        the :param:`retrieval_chain` generates when given the :param:`prompt`
+    :rtype: Optional[str]
+    """
+    response = retrieval_chain({"question": prompt})
+
+    return response.get(extraction_key, None)
