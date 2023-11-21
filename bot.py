@@ -7,12 +7,13 @@ import streamlit as st
 from langchain.agents import AgentType
 from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferWindowMemory
+from langchain.prompts import PromptTemplate
 from langchain.tools import Tool
 
 from src.agent import create_agent, generate_response_from_agent
 from src.graph import create_graph
 from src.llm import create_chat_llm, create_embedding_model
-from src.tools.cypher import create_cypher_qa_chain
+from src.tools.cypher import create_cypher_qa_chain, CYPHER_GENERATION_TEMPLATE
 from src.tools.vector import create_neo4j_vector_from_existing_index
 from utils import write_message
 
@@ -132,7 +133,12 @@ graph = create_graph(
     url=st.secrets.neo4j_settings["URI"],
     password=st.secrets.neo4j_settings["PASSWORD"],
 )
-graph_cypher_qa_chain = create_cypher_qa_chain(llm=llm_chatbot, graph=graph)
+graph_cypher_qa_chain = create_cypher_qa_chain(
+    llm=llm_chatbot,
+    graph=graph,
+    verbose=True,
+    cypher_prompt=PromptTemplate.from_template(CYPHER_GENERATION_TEMPLATE),
+)
 tools = [
     Tool.from_function(
         name="Vector Search Index",
